@@ -1,3 +1,5 @@
+# import Base: Base, @show
+
 function CC.OptimizationState(frame::InferenceState, params::OptimizationParams, interp::XInterpreter)
     ret = @invoke OptimizationState(frame::InferenceState, params::OptimizationParams, interp::AbstractInterpreter)
 
@@ -25,7 +27,7 @@ function CC.finish(interp::XInterpreter, opt::OptimizationState, params::Optimiz
 end
 
 function CC.optimize(interp::XInterpreter, opt::OptimizationState, params::OptimizationParams, @nospecialize(result))
-    nargs = Int(opt.args) - 1
+    nargs = Int(opt.nargs) - 1
     ir = x_run_passes(opt.src, nargs, opt)
     return finish(interp, opt, params, ir, result)
 end
