@@ -1,4 +1,4 @@
-using Core: ReturnNode
+using Core: ReturnNode, SSAValue
 
 function escape_analysis(ir::IRCode, ci::CodeInfo)
     # TODO: at this moment, let's assume the function only has a
@@ -7,8 +7,16 @@ function escape_analysis(ir::IRCode, ci::CodeInfo)
     escapes = Dict{Int, Set{Int}}()
     for (idx, inst) in Iterators.reverse(enumerate(ir.stmts))
         stmt = inst[:inst]
-        if isa(stmt, ReturnNode)
-            nothing
+        if idx in escapes
+            if isa(stmt, Expr)
+                union!(escapes[idx])
+            end
+        end
+        if isa(stmt, ReturnNode) && isdefined(stmt, :val)
+            escapes[idx] = Set()
+            if isa(stmt.val, SSAValue)
+                ssa_val = stmt.val
+                union!(escapes[ssa_val.val], [idx])
         end
     end
     return ir
