@@ -15,7 +15,7 @@ function update_escapes!(escapes::Dict{EscapedVal, Set{Int}}, escaped::EscapedVa
     if !haskey(escapes, escaped)
         escapes[escaped] = Set()
     end
-    union(escapes[escaped], escape_id)
+    union!(escapes[escaped], escape_id)
 end
 
 function escape_analysis(ir::IRCode, ci::CodeInfo)
@@ -23,7 +23,7 @@ function escape_analysis(ir::IRCode, ci::CodeInfo)
     # TODO: at this moment, let's assume the function only has a
     # single giant BaiscBlock
 
-    # a mapping from stmt idx to its most recent escape site
+    # a mapping from escaped value to its most recent escape site (idx)
     escapes = Dict{EscapedVal, Set{Int}}()
     len = length(ir.stmts)
     for idx in len:-1:1
