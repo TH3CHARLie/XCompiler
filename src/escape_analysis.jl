@@ -17,16 +17,33 @@ function update_escapes!(escapes::Dict{EscapedVal, Set{Int}}, escaped::EscapedVa
         escapes[escaped] = Set()
     end
     @printf("Escaped! %s %d => Stmt %d\n", escaped.type == 1 ? "SSAValue" : "Argument", escaped.val, escape_id)
-    union!(escapes[escaped], escape_id)
+    push!(escapes[escaped], escape_id)
 end
 
 function in_escapes(escapes::Dict{EscapedVal, Set{Int}}, idx::Int)
     for k in keys(escapes)
-        if k.type == 1 && k.val == idx
+        # Argument will never be on the left hand side
+        # so only need to check SSA value here
+        if k.type == TYP_SSA && k.val == idx
             return true
         end
     end
     return false
+end
+
+function produce_escape_trace(escapes::Dict{EscapedVal, Set{Int}}, alloc_idx::Int)
+    if in_escapes(escapes, alloc_idx)
+        while true
+            # TODO: DFS here
+            # next_escape = [i for i in escapes[alloc_idx]]
+            # if length(next_escape) == 0
+            #     break
+            # end
+            nothing
+        end
+    else
+        @printf("allocation stmt %d is not escaped!\n", alloc_idx)
+    end
 end
 
 function escape_analysis(ir::IRCode, ci::CodeInfo)
@@ -36,10 +53,18 @@ function escape_analysis(ir::IRCode, ci::CodeInfo)
 
     # a mapping from escaped value to its most recent escape site (idx)
     escapes = Dict{EscapedVal, Set{Int}}()
+    allocations = Set{Int}()
     len = length(ir.stmts)
     for idx in len:-1:1
         stmt = ir.stmts[idx]
         inst = stmt[:inst]
+        if isa(inst, Expr) && inst.head === :call
+            type = stmt[:type]
+            if ismutabletype(type)
+                push!(allocations, idx)
+                @printf("%d is a mutable allocation!\n", idx)
+            end
+        end
         # if the current stmt is already escaped
         # mark each of its arg as escaped from this
         if in_escapes(escapes, idx)
