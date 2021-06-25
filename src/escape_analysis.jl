@@ -1,5 +1,6 @@
 using Core: ReturnNode, SSAValue, Argument
 using Base: length, hash
+using Printf
 
 const TYP_SSA = 1
 const TYP_ARG = 2
@@ -15,7 +16,17 @@ function update_escapes!(escapes::Dict{EscapedVal, Set{Int}}, escaped::EscapedVa
     if !haskey(escapes, escaped)
         escapes[escaped] = Set()
     end
+    @printf("Escaped! %s %d => Stmt %d\n", escaped.type == 1 ? "SSAValue" : "Argument", escaped.val, escape_id)
     union!(escapes[escaped], escape_id)
+end
+
+function in_escapes(escapes::Dict{EscapedVal, Set{Int}}, idx::Int)
+    for k in keys(escapes)
+        if k.type == 1 && k.val == idx
+            return true
+        end
+    end
+    return false
 end
 
 function escape_analysis(ir::IRCode, ci::CodeInfo)
@@ -31,7 +42,7 @@ function escape_analysis(ir::IRCode, ci::CodeInfo)
         inst = stmt[:inst]
         # if the current stmt is already escaped
         # mark each of its arg as escaped from this
-        if idx in keys(escapes)
+        if in_escapes(escapes, idx)
             if isa(inst, Expr)
                 for arg in inst.args[2:end]
                     if isa(arg, Argument)
