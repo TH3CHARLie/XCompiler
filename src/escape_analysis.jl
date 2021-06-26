@@ -87,8 +87,11 @@ function escape_analysis(ir::IRCode, ci::CodeInfo)
     escaped_args = Vector{Int}()
     for idx in 2:(1 + args_len)
         if in_escapes(escapes, TYP_ARG, idx)
-            @printf("Arg %d escaped!\n", idx)
-            push!(escaped_args, idx)
+            # only consider mutable type
+            if ismutabletype(ir.argtypes[idx])
+                @printf("Mutable arg %d escaped!\n", idx)
+                push!(escaped_args, idx)
+            end
         end
     end
     # and find out if any allocations are escaped
