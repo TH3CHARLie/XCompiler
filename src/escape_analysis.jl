@@ -85,6 +85,9 @@ function escape_analysis(ir::IRCode, ci::CodeInfo)
                 ssa_val = inst.val
                 escaped = EscapedVal(TYP_SSA, ssa_val.id)
                 update_escapes!(escapes, escaped, idx)
+            elseif isa(inst, Argument)
+                escaped = EscapedVal(TYP_ARG, inst.n)
+                update_escapes!(escapes, escaped, idx)
             end
         end
     end
