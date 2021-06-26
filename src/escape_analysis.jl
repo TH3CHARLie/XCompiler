@@ -10,6 +10,11 @@ struct EscapedVal
     val::Int
 end
 
+struct EscapeInfo
+    escaped_args::Vector{Int}
+    escaped_allocations::Vector{Int}
+end
+
 Base.hash(x::EscapedVal) = Base.hash(x.type, Base.hash(x.val))
 
 function update_escapes!(escapes::Dict{EscapedVal, Set{Int}}, escaped::EscapedVal, escape_id::Int)
@@ -20,30 +25,13 @@ function update_escapes!(escapes::Dict{EscapedVal, Set{Int}}, escaped::EscapedVa
     push!(escapes[escaped], escape_id)
 end
 
-function in_escapes(escapes::Dict{EscapedVal, Set{Int}}, idx::Int)
+function in_escapes(escapes::Dict{EscapedVal, Set{Int}}, type::Int, idx::Int)
     for k in keys(escapes)
-        # Argument will never be on the left hand side
-        # so only need to check SSA value here
-        if k.type == TYP_SSA && k.val == idx
+        if k.type == type && k.val == idx
             return true
         end
     end
     return false
-end
-
-function produce_escape_trace(escapes::Dict{EscapedVal, Set{Int}}, alloc_idx::Int)
-    if in_escapes(escapes, alloc_idx)
-        while true
-            # TODO: DFS here
-            # next_escape = [i for i in escapes[alloc_idx]]
-            # if length(next_escape) == 0
-            #     break
-            # end
-            nothing
-        end
-    else
-        @printf("allocation stmt %d is not escaped!\n", alloc_idx)
-    end
 end
 
 function escape_analysis(ir::IRCode, ci::CodeInfo)
@@ -67,7 +55,7 @@ function escape_analysis(ir::IRCode, ci::CodeInfo)
         end
         # if the current stmt is already escaped
         # mark each of its arg as escaped from this
-        if in_escapes(escapes, idx)
+        if in_escapes(escapes, TYP_SSA, idx)
             if isa(inst, Expr)
                 for arg in inst.args[2:end]
                     if isa(arg, Argument)
@@ -91,5 +79,21 @@ function escape_analysis(ir::IRCode, ci::CodeInfo)
             end
         end
     end
-    return ir
+
+    # now let's analyse the escape info of args
+    # TODO: figure out why argtypes are like this
+    @show ir.argtypes
+    args_len = length(ir.argtypes) - 3
+    escaped_args = Vector{Int}()
+    for idx in 2:(1 + args_len)
+        if in_escapes(escapes, TYP_ARG, idx)
+            @printf("Arg %d escaped!\n", idx)
+            push!(escaped_args, idx)
+        end
+    end
+    # and find out if any allocations are escaped
+    escaped_allocations = [idx for idx in allocations if in_escapes(escapes, TYP_SSA, idx)]
+    escape_info = EscapeInfo(escaped_args, escaped_allocations)
+    @show escape_info
+    return escape_info
 end
